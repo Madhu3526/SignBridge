@@ -148,6 +148,11 @@ export {
     TAMIL_ZH_PULLI,
     TAMIL_LL_PULLI,
     TAMIL_RR_PULLI,
-    TAMIL_NN_PULLI
+    TAMIL_NN_PULLI,
+    SIGN_EAT,
+    SIGN_DRINK,
+    SIGN_SLEEP,
+    SIGN_COME,
+    SIGN_GO
 
 }
