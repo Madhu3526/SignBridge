@@ -69,11 +69,6 @@ import { TAMIL_ZH_PULLI } from './Alphabets/tamil_zh_pulli';
 import { TAMIL_LL_PULLI } from './Alphabets/tamil_ll_pulli';
 import { TAMIL_RR_PULLI } from './Alphabets/tamil_rr_pulli';
 import { TAMIL_NN_PULLI } from './Alphabets/tamil_nn_pulli';
-import { SIGN_EAT } from './Alphabets/sign_eat';
-import { SIGN_DRINK } from './Alphabets/sign_drink';
-import { SIGN_SLEEP } from './Alphabets/sign_sleep';
-import { SIGN_COME } from './Alphabets/sign_come';
-import { SIGN_GO } from './Alphabets/sign_go';
 
 
 
@@ -148,11 +143,6 @@ export {
     TAMIL_ZH_PULLI,
     TAMIL_LL_PULLI,
     TAMIL_RR_PULLI,
-    TAMIL_NN_PULLI,
-    SIGN_EAT,
-    SIGN_DRINK,
-    SIGN_SLEEP,
-    SIGN_COME,
-    SIGN_GO
+    TAMIL_NN_PULLI
 
 }
