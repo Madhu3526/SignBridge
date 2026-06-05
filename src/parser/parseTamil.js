@@ -1,5 +1,6 @@
 import { consonantToMei } from './meiMap';
 import { uyirMap, vowelCodeToUyir } from './uyirMap';
+import { isGranthaConsonant } from './granthaMap';
 
 export const TAMIL_PULLI = '\u0BCD';
 
@@ -57,6 +58,16 @@ export const parseTamilLetter = (input = '') => {
 
   const mei = consonantToMei[first];
   if (!mei) {
+    if (isGranthaConsonant(first)) {
+      const second = chars[1] || '';
+      const hasFollower = second === TAMIL_PULLI || vowelSigns.has(second);
+      return {
+        type: 'grantha',
+        text: hasFollower ? first + second : first,
+        grantha: first,
+        length: hasFollower ? 2 : 1,
+      };
+    }
     return {
       type: 'literal',
       text: first,

@@ -40,6 +40,12 @@ export const SIGN_COME = (ref) => {
     ]);
 
 
+
+    // =========================================
+    // ARM POSITION
+    // HAND FORWARD
+    // =========================================
+
     animations.push([
         "mixamorigRightArm",
         "rotation",
@@ -64,6 +70,11 @@ export const SIGN_COME = (ref) => {
         "-"
     ]);
 
+
+
+    // =========================================
+    // FOREARM
+    // =========================================
 
     animations.push([
         "mixamorigRightForeArm",

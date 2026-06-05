@@ -1,5 +1,5 @@
 import '../App.css';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Slider from 'react-input-slider';
 import 'font-awesome/css/font-awesome.min.css';
 
@@ -10,18 +10,9 @@ import ybotPic from '../Models/ybot/ybot.png';
 
 import * as words from '../Animations/words';
 import { normalizeSignText, playTamilText } from '../Animations/animationLookup';
-import { appendTamilWords } from '../Animations/Tamil/composer';
 import { defaultPose } from '../Animations/defaultPose';
-import { classifyTranscript } from '../parser/validateTamil';
-import { prepareSignInput } from '../parser/romanizedTamil';
-import {
-  SIGN_DEBOUNCE_MS,
-  getSignableSlice,
-  resolveSpeechLocale,
-  tokenizeTranscript,
-} from '../parser/streamingTranscript';
+import { classifyTranscript, filterTamilOnly } from '../parser/validateTamil';
 import { getGranthaLabel } from '../parser/granthaMap';
-import { WhisperRecorder } from '../speech/whisperEngine';
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
@@ -37,36 +28,18 @@ function Convert() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [langWarning, setLangWarning] = useState(null); // { type, removed }
   const [glossInfo, setGlossInfo] = useState({ skipped: [], granthaChars: [] });
-  const [speechLangMode, setSpeechLangMode] = useState('tamil'); // tamil | english | auto
-  const [speechEngine, setSpeechEngine] = useState('browser'); // browser | whisper
-  const [activeLocale, setActiveLocale] = useState('ta-IN');
-  const [whisperTranscript, setWhisperTranscript] = useState('');
-  const [whisperListening, setWhisperListening] = useState(false);
-  const [whisperStatus, setWhisperStatus] = useState('idle'); // idle | loading-model | listening | transcribing
-  const [whisperProgress, setWhisperProgress] = useState(null);
 
   const componentRef = useRef({});
   const { current: ref } = componentRef;
   const textFromInput = useRef();
-  const signedWordCountRef = useRef(0);
-  const signDebounceRef = useRef(null);
-  const activeLocaleRef = useRef('ta-IN');
-  const whisperRecorderRef = useRef(null);
 
   const {
-    transcript: browserTranscript,
-    listening: browserListening,
+    transcript,
+    listening,
     resetTranscript,
     browserSupportsSpeechRecognition,
     isMicrophoneAvailable,
   } = useSpeechRecognition();
-
-  const usingWhisper = speechEngine === 'whisper';
-  const transcript = usingWhisper ? whisperTranscript : browserTranscript;
-  const listening = usingWhisper ? whisperListening : browserListening;
-  const micSupported = usingWhisper
-    ? typeof window !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia)
-    : browserSupportsSpeechRecognition;
 
   useEffect(() => {
     ref.flag = false;
@@ -160,203 +133,52 @@ function Convert() {
     ref.renderer.render(ref.scene, ref.camera);
   };
 
-  const updateLangWarning = useCallback((value) => {
+  const signText = (value) => {
+    setText('');
+    setGlossInfo({ skipped: [], granthaChars: [] });
+
     const classification = classifyTranscript(value);
+
+    if (classification.type === 'empty') {
+      return;
+    }
+
     if (classification.type === 'english') {
-      setLangWarning({ type: 'english-info' });
-    } else if (classification.type === 'mixed') {
-      setLangWarning({ type: 'mixed-info', english: classification.englishWords });
+      setLangWarning({ type: 'english', removed: [] });
+      return;
+    }
+
+    let textToSign = value;
+    if (classification.type === 'mixed') {
+      textToSign = filterTamilOnly(value);
+      setLangWarning({ type: 'mixed', removed: classification.englishWords });
     } else {
       setLangWarning(null);
     }
-  }, []);
 
-  const mergeGlossInfo = useCallback((skipped, granthaChars) => {
-    setGlossInfo((prev) => ({
-      skipped: [...prev.skipped, ...skipped],
-      granthaChars: [...prev.granthaChars, ...granthaChars],
-    }));
-  }, []);
-
-  const flushIncrementalSign = useCallback((value, { forceFlush = false, reset = false } = {}) => {
-    const trimmed = prepareSignInput(value).trim();
-    if (!trimmed) return;
-
-    const tokens = tokenizeTranscript(trimmed);
-    const { slice, nextCount } = getSignableSlice(tokens, signedWordCountRef.current, {
-      listening,
-      forceFlush,
-    });
-
-    if (!slice.length) return;
-
-    if (reset) {
-      setText('');
-      setGlossInfo({ skipped: [], granthaChars: [] });
-      signedWordCountRef.current = 0;
-    }
-
-    const wordsToSign = slice.map((t) => t.word);
-    const { skipped, granthaChars } = appendTamilWords(wordsToSign, ref, { words });
-    signedWordCountRef.current = nextCount;
-    mergeGlossInfo(skipped, granthaChars);
-    updateLangWarning(trimmed);
-  }, [listening, mergeGlossInfo, ref, updateLangWarning]);
-
-  const signText = (value, { reset = true } = {}) => {
-    const trimmed = prepareSignInput(value).trim();
-    if (!trimmed) return;
-
-    if (reset) {
-      setText('');
-      setGlossInfo({ skipped: [], granthaChars: [] });
-      signedWordCountRef.current = 0;
-    }
-
-    updateLangWarning(trimmed);
-
-    const str = normalizeSignText(trimmed);
+    const str = normalizeSignText(textToSign);
     playTamilText(str, ref, {
       words,
       onGloss: ({ skipped, granthaChars }) => {
-        if (reset) {
-          setGlossInfo({ skipped, granthaChars });
-        } else {
-          mergeGlossInfo(skipped, granthaChars);
-        }
+        setGlossInfo({ skipped, granthaChars });
       },
     });
-
-    signedWordCountRef.current = tokenizeTranscript(trimmed).length;
-  };
-
-  const restartListening = useCallback((locale) => {
-    if (usingWhisper) return;
-    SpeechRecognition.stopListening();
-    activeLocaleRef.current = locale;
-    setActiveLocale(locale);
-    SpeechRecognition.startListening({ continuous: true, language: locale });
-  }, [usingWhisper]);
-
-  const clearVoiceSession = () => {
-    if (usingWhisper) {
-      setWhisperTranscript('');
-    } else {
-      resetTranscript();
-    }
-    setText('');
-    setGlossInfo({ skipped: [], granthaChars: [] });
-    signedWordCountRef.current = 0;
-    setLangWarning(null);
-  };
-
-  const startWhisperListening = async () => {
-    clearVoiceSession();
-    setActiveLocale('whisper-mixed');
-
-    const recorder = new WhisperRecorder({
-      onTranscript: (chunk) => {
-        setWhisperTranscript((prev) => (prev ? `${prev} ${chunk}` : chunk));
-      },
-      onProgress: (info) => {
-        if (info?.status === 'progress' && info.progress != null) {
-          setWhisperProgress(Math.round(info.progress * 100));
-        }
-      },
-      onStatus: (status) => setWhisperStatus(status),
-      onError: (err) => {
-        console.error('Whisper error:', err);
-        setWhisperStatus('idle');
-        setWhisperListening(false);
-      },
-    });
-
-    whisperRecorderRef.current = recorder;
-    setWhisperListening(true);
-    try {
-      await recorder.start();
-    } catch (err) {
-      console.error('Whisper start failed:', err);
-      setWhisperListening(false);
-      setWhisperStatus('idle');
-    }
-  };
-
-  const stopWhisperListening = () => {
-    whisperRecorderRef.current?.stop();
-    whisperRecorderRef.current = null;
-    setWhisperListening(false);
-    setWhisperStatus('idle');
-    setWhisperProgress(null);
   };
 
   const startListening = () => {
-    clearVoiceSession();
-
-    if (usingWhisper) {
-      startWhisperListening();
-      return;
-    }
-
-    const locale = resolveSpeechLocale(speechLangMode, '');
-    activeLocaleRef.current = locale;
-    setActiveLocale(locale);
-    SpeechRecognition.startListening({ continuous: true, language: locale });
+    resetTranscript();
+    setText('');
+    setLangWarning(null);
+    setGlossInfo({ skipped: [], granthaChars: [] });
+    SpeechRecognition.startListening({ continuous: true, language: 'ta-IN' });
   };
 
-  const stopListening = () => {
-    if (usingWhisper) {
-      stopWhisperListening();
-      return;
-    }
-    SpeechRecognition.stopListening();
-  };
-
-  useEffect(() => () => {
-    whisperRecorderRef.current?.stop();
-  }, []);
+  const stopListening = () => SpeechRecognition.stopListening();
 
   const stopAndSign = () => {
-    flushIncrementalSign(transcript, { forceFlush: true });
     stopListening();
+    signText(transcript);
   };
-
-  // Real-time signing: debounce transcript updates while the mic is on.
-  useEffect(() => {
-    if (!listening) {
-      if (signDebounceRef.current) {
-        clearTimeout(signDebounceRef.current);
-        signDebounceRef.current = null;
-      }
-      return undefined;
-    }
-
-    if (signDebounceRef.current) clearTimeout(signDebounceRef.current);
-
-    signDebounceRef.current = setTimeout(() => {
-      flushIncrementalSign(transcript, { forceFlush: true });
-
-      if (!usingWhisper && speechLangMode === 'auto') {
-        const nextLocale = resolveSpeechLocale('auto', transcript);
-        if (nextLocale !== activeLocaleRef.current) {
-          restartListening(nextLocale);
-        }
-      }
-    }, SIGN_DEBOUNCE_MS);
-
-    return () => {
-      if (signDebounceRef.current) {
-        clearTimeout(signDebounceRef.current);
-        signDebounceRef.current = null;
-      }
-    };
-  }, [transcript, listening, speechLangMode, usingWhisper, flushIncrementalSign, restartListening]);
-
-  // Sign stable words immediately (holds back the last in-progress token).
-  useEffect(() => {
-    if (!listening || !transcript.trim()) return;
-    flushIncrementalSign(transcript, { forceFlush: false });
-  }, [transcript, listening, flushIncrementalSign]);
 
   const uniqueGrantha = [...new Set(glossInfo.granthaChars)];
 
@@ -372,7 +194,10 @@ function Convert() {
             <span className='brand-sub'>Tamil Sign Language</span>
           </div>
         </div>
-        
+        <div className={`status-badge${listening ? ' live' : ''}`}>
+          <span className='status-dot' />
+          {listening ? 'Listening' : 'Ready'}
+        </div>
       </nav>
 
       {/* ── Workspace ── */}
@@ -406,96 +231,23 @@ function Convert() {
                 <button
                   className={`mic-btn${listening ? ' listening' : ''}`}
                   onClick={listening ? stopListening : startListening}
-                  disabled={!micSupported || whisperStatus === 'loading-model'}
+                  disabled={!browserSupportsSpeechRecognition}
                   aria-label={listening ? 'Stop listening' : 'Start listening'}
                 >
                   <i className={`fa fa-microphone${listening ? '-slash' : ''}`} />
                 </button>
-                <p className='mic-label'>
-                  {whisperStatus === 'loading-model'
-                    ? `Loading Whisper model${whisperProgress != null ? `… ${whisperProgress}%` : '…'}`
-                    : listening ? 'Tap to stop' : 'Tap to listen'}
-                </p>
-                {!micSupported && (
-                  <p className='mic-error'>
-                    {usingWhisper ? 'Microphone not available in this browser.' : 'Use Chrome or Edge for speech support.'}
-                  </p>
+                <p className='mic-label'>{listening ? 'Tap to stop' : 'Tap to listen'}</p>
+                {!browserSupportsSpeechRecognition && (
+                  <p className='mic-error'>Use Chrome or Edge for speech support.</p>
                 )}
-                {micSupported && !listening && whisperStatus !== 'loading-model' && (
-                  <p className='mic-note'>
-                    {usingWhisper
-                      ? 'Whisper mixed mode — Tamil + English code-switching'
-                      : 'Signs in real time as you speak'}
-                  </p>
-                )}
-                {listening && (
-                  <p className='mic-note mic-note--live'>
-                    {usingWhisper && whisperStatus === 'transcribing'
-                      ? 'Transcribing chunk…'
-                      : 'Signing live — pause to finish a phrase'}
-                  </p>
+                {browserSupportsSpeechRecognition && !listening && (
+                  <p className='mic-note'>Recognises Tamil (ta-IN)</p>
                 )}
               </div>
-
-              <div className='section-label'>
-                <span>Speech engine</span>
-              </div>
-              <div className='lang-tabs engine-tabs'>
-                <button
-                  type='button'
-                  className={`lang-tab${speechEngine === 'browser' ? ' active' : ''}`}
-                  onClick={() => setSpeechEngine('browser')}
-                  disabled={listening}
-                >
-                  Browser
-                </button>
-                <button
-                  type='button'
-                  className={`lang-tab${speechEngine === 'whisper' ? ' active' : ''}`}
-                  onClick={() => setSpeechEngine('whisper')}
-                  disabled={listening}
-                >
-                  Whisper
-                </button>
-              </div>
-
-              <div className='section-label'>
-                <span>Speech language</span>
-                {usingWhisper && <span className='lang-badge'>mixed</span>}
-              </div>
-              <div className={`lang-tabs${usingWhisper ? ' lang-tabs--disabled' : ''}`}>
-                <button
-                  type='button'
-                  className={`lang-tab${speechLangMode === 'tamil' ? ' active' : ''}`}
-                  onClick={() => setSpeechLangMode('tamil')}
-                  disabled={listening || usingWhisper}
-                >
-                  Tamil
-                </button>
-                <button
-                  type='button'
-                  className={`lang-tab${speechLangMode === 'english' ? ' active' : ''}`}
-                  onClick={() => setSpeechLangMode('english')}
-                  disabled={listening || usingWhisper}
-                >
-                  English
-                </button>
-                <button
-                  type='button'
-                  className={`lang-tab${speechLangMode === 'auto' ? ' active' : ''}`}
-                  onClick={() => setSpeechLangMode('auto')}
-                  disabled={listening || usingWhisper}
-                >
-                  Auto
-                </button>
-              </div>
-              {usingWhisper && (
-                <p className='mic-note'>First run downloads ~40 MB Whisper model (cached afterward).</p>
-              )}
 
               <div className='section-label'>
                 <span>Transcript</span>
-                <span className='lang-badge'>{activeLocale}</span>
+                <span className='lang-badge'>ta-IN</span>
               </div>
               <textarea
                 className='text-area transcript-area'
@@ -505,28 +257,26 @@ function Convert() {
                 rows={5}
               />
 
-              {/* Language info notes */}
-              {langWarning?.type === 'english-info' && (
-                <div className='lang-warning lang-warning--mild'>
-                  <i className='fa fa-info-circle' />
-                  English detected — fingerspelling each letter.
+              {/* Language warning */}
+              {langWarning?.type === 'english' && (
+                <div className='lang-warning'>
+                  <i className='fa fa-exclamation-triangle' />
+                  No Tamil text detected — please speak in Tamil.
                 </div>
               )}
-              {langWarning?.type === 'mixed-info' && (
+              {langWarning?.type === 'mixed' && (
                 <div className='lang-warning lang-warning--mild'>
                   <i className='fa fa-info-circle' />
-                  Mixed input — English words will be fingerspelled:{' '}
-                  {langWarning.english.map((w, i) => (
+                  Removed {langWarning.removed.length} non-Tamil word
+                  {langWarning.removed.length !== 1 ? 's' : ''}:{' '}
+                  {langWarning.removed.map((w, i) => (
                     <span key={i} className='chip chip-removed'>{w}</span>
                   ))}
                 </div>
               )}
 
               <div className='action-row'>
-                <button
-                  className='btn btn-secondary'
-                  onClick={clearVoiceSession}
-                >
+                <button className='btn btn-secondary' onClick={resetTranscript}>
                   <i className='fa fa-eraser' /> Clear
                 </button>
                 <button
@@ -534,11 +284,11 @@ function Convert() {
                   onClick={stopAndSign}
                   disabled={!transcript.trim()}
                 >
-                  <i className='fa fa-sign-language' /> Finish &amp; sign
+                  <i className='fa fa-sign-language' /> Sign it
                 </button>
               </div>
 
-              {!usingWhisper && isMicrophoneAvailable === false && (
+              {isMicrophoneAvailable === false && (
                 <p className='alert-note'>Microphone permission is blocked in your browser.</p>
               )}
             </div>
@@ -553,7 +303,7 @@ function Convert() {
               <textarea
                 className='text-area'
                 ref={textFromInput}
-                placeholder='Type Tamil or romanized Tamil, e.g. naan veetuku varugiren'
+                placeholder='Type Tamil text here, e.g. கி தோ கா'
                 rows={7}
               />
               <button
@@ -612,10 +362,17 @@ function Convert() {
             <div className='stage-info'>
               <span className='stage-label'>Sign view</span>
               <strong className='stage-status'>
-                {listening ? 'Live — signing as you speak' : 'Avatar ready'}
+                {listening ? 'Live — listening now' : 'Avatar ready'}
               </strong>
             </div>
             <div className='stage-actions'>
+              <button
+                className='btn btn-outline'
+                onClick={() => signText(transcript)}
+                disabled={!transcript.trim()}
+              >
+                Sign transcript
+              </button>
               <button
                 className='btn btn-icon'
                 onClick={() => setSettingsOpen((o) => !o)}

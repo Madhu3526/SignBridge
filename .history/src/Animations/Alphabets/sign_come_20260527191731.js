@@ -2,6 +2,10 @@ export const SIGN_COME = (ref) => {
 
     let animations = []
 
+    // =========================================
+    // RIGHT HAND OPEN PALM
+    // =========================================
+
     // INDEX
     animations.push(["mixamorigRightHandIndex1", "rotation", "z", Math.PI/10, "+"]);
     animations.push(["mixamorigRightHandIndex2", "rotation", "z", Math.PI/14, "+"]);
@@ -23,6 +27,11 @@ export const SIGN_COME = (ref) => {
     animations.push(["mixamorigRightHandPinky3", "rotation", "z", Math.PI/18, "+"]);
 
 
+
+    // =========================================
+    // THUMB OPEN
+    // =========================================
+
     animations.push([
         "mixamorigRightHandThumb1",
         "rotation",
@@ -39,6 +48,12 @@ export const SIGN_COME = (ref) => {
         "+"
     ]);
 
+
+
+    // =========================================
+    // ARM POSITION
+    // HAND FORWARD
+    // =========================================
 
     animations.push([
         "mixamorigRightArm",
@@ -64,6 +79,11 @@ export const SIGN_COME = (ref) => {
         "-"
     ]);
 
+
+
+    // =========================================
+    // FOREARM
+    // =========================================
 
     animations.push([
         "mixamorigRightForeArm",
