@@ -125,8 +125,8 @@ ref.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     canvas.appendChild(ref.renderer.domElement);
 
    ref.camera.position.z = 1.45;
-ref.camera.position.y = 1.45;
-ref.camera.lookAt(0, 1.29, 0);
+ref.camera.position.y = 1.4;
+ref.camera.lookAt(0, 1.15, 0);
 
     const resizeRenderer = () => {
       const w = canvas.clientWidth || window.innerWidth - 370;
