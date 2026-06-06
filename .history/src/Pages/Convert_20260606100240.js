@@ -124,24 +124,9 @@ ref.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     canvas.innerHTML = '';
     canvas.appendChild(ref.renderer.domElement);
 
-   const isMobile = window.innerWidth < 768;
-
-ref.camera = new THREE.PerspectiveCamera(
-  isMobile ? 50 : 40,
-  canvasWidth / canvasHeight,
-  0.1,
-  1000
-);
-
-if (isMobile) {
-  ref.camera.position.z = 1.65;
-} else {
-  ref.camera.position.z = 1.35;
-}
-
+   ref.camera.position.z = 1.35;
 ref.camera.position.y = 1.55;
 ref.camera.lookAt(0, 1.45, 0);
-
 
     const resizeRenderer = () => {
       const w = canvas.clientWidth || window.innerWidth - 370;

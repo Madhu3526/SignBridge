@@ -142,7 +142,6 @@ if (isMobile) {
 ref.camera.position.y = 1.55;
 ref.camera.lookAt(0, 1.45, 0);
 
-
     const resizeRenderer = () => {
       const w = canvas.clientWidth || window.innerWidth - 370;
       const h = Math.max(canvas.clientHeight || window.innerHeight - navH - barH, 420);
