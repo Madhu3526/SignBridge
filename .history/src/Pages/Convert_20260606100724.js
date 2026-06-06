@@ -134,7 +134,7 @@ ref.camera = new THREE.PerspectiveCamera(
 );
 
 if (isMobile) {
-  ref.camera.position.z = 1.45;
+  ref.camera.position.z = 1.55;
 } else {
   ref.camera.position.z = 1.25;
 }
