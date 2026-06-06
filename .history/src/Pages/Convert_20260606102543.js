@@ -107,18 +107,6 @@ ref.scene.add(rimLight);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
 ref.scene.add(ambientLight);
 
-ref.renderer = new THREE.WebGLRenderer({
-  antialias: true,
-  powerPreference: "high-performance"
-});
-
-ref.renderer.shadowMap.enabled = true;
-ref.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-// Prevent over-bright rendering
-ref.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-ref.renderer.toneMappingExposure = 0.85;
-
 
 ref.renderer.shadowMap.enabled = true;
 ref.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
