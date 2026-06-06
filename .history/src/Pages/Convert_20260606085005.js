@@ -77,41 +77,12 @@ function Convert() {
     ref.scene = new THREE.Scene();
     ref.scene.background = new THREE.Color(0xd8e5f0);
 
-    // Main spotlight
-const spotLight = new THREE.SpotLight(0xffffff, 3);
-spotLight.position.set(0, 5, 5);
-spotLight.castShadow = true;
-spotLight.angle = Math.PI / 6;
-spotLight.penumbra = 0.5;
-ref.scene.add(spotLight);
+    const spotLight = new THREE.SpotLight(0xffffff, 2);
+    spotLight.position.set(0, 5, 5);
+    ref.scene.add(spotLight);
 
-// Left fill
-const fillLightLeft = new THREE.DirectionalLight(0xffffff, 1.2);
-fillLightLeft.position.set(-5, 3, 4);
-fillLightLeft.castShadow = true;
-ref.scene.add(fillLightLeft);
+    ref.renderer = new THREE.WebGLRenderer({ antialias: true });
 
-// Right fill
-const fillLightRight = new THREE.DirectionalLight(0xffffff, 1.2);
-fillLightRight.position.set(5, 3, 4);
-fillLightRight.castShadow = true;
-ref.scene.add(fillLightRight);
-
-// Rim light
-const rimLight = new THREE.DirectionalLight(0xffffff, 0.8);
-rimLight.position.set(0, 4, -5);
-ref.scene.add(rimLight);
-
-// Ambient light
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-ref.scene.add(ambientLight);
-
-ref.renderer = new THREE.WebGLRenderer({
-  antialias: true,
-});
-
-ref.renderer.shadowMap.enabled = true;
-ref.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     const canvas = document.getElementById('canvas');
     const canvasWidth = canvas.clientWidth || window.innerWidth - 370;
     const navH = 60;
@@ -124,9 +95,9 @@ ref.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     canvas.innerHTML = '';
     canvas.appendChild(ref.renderer.domElement);
 
-   ref.camera.position.z = 1.25;
-ref.camera.position.y = 1.50;
-ref.camera.lookAt(0, 1.30, 0);
+    ref.camera.position.z = 1.7;
+    ref.camera.position.y = 1.35;
+    ref.camera.lookAt(0, 1.15, 0);
 
     const resizeRenderer = () => {
       const w = canvas.clientWidth || window.innerWidth - 370;
@@ -142,33 +113,8 @@ ref.camera.lookAt(0, 1.30, 0);
     const loader = new GLTFLoader();
     loader.load(bot, (gltf) => {
       gltf.scene.traverse((child) => {
-
-  if (child.type === 'SkinnedMesh') {
-
-    child.frustumCulled = false;
-
-    child.castShadow = true;
-    child.receiveShadow = true;
-
-    if (child.material) {
-
-      child.material.roughness = 1;
-      child.material.metalness = 0;
-      child.material.needsUpdate = true;
-
-      // Optional hand highlight
-      const name = child.name.toLowerCase();
-
-      if (
-        name.includes('hand') ||
-        name.includes('finger') ||
-        name.includes('thumb')
-      ) {
-        child.material.color.set('#ffd6b0');
-      }
-    }
-  }
-});
+        if (child.type === 'SkinnedMesh') child.frustumCulled = false;
+      });
       ref.avatar = gltf.scene;
       ref.scene.add(ref.avatar);
       defaultPose(ref);

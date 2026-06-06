@@ -118,15 +118,19 @@ ref.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     const barH = 53;
     const canvasHeight = Math.max(window.innerHeight - navH - barH, 420);
 
-    ref.camera = new THREE.PerspectiveCamera(30, canvasWidth / canvasHeight, 0.1, 1000);
-    ref.renderer.setSize(canvasWidth, canvasHeight);
+    ref.camera = new THREE.PerspectiveCamera(
+  40,
+  canvasWidth / canvasHeight,
+  0.1,
+  1000
+);
 
     canvas.innerHTML = '';
     canvas.appendChild(ref.renderer.domElement);
 
-   ref.camera.position.z = 1.25;
-ref.camera.position.y = 1.50;
-ref.camera.lookAt(0, 1.30, 0);
+    ref.camera.position.z = 1.7;
+    ref.camera.position.y = 1.35;
+    ref.camera.lookAt(0, 1.15, 0);
 
     const resizeRenderer = () => {
       const w = canvas.clientWidth || window.innerWidth - 370;
@@ -142,33 +146,8 @@ ref.camera.lookAt(0, 1.30, 0);
     const loader = new GLTFLoader();
     loader.load(bot, (gltf) => {
       gltf.scene.traverse((child) => {
-
-  if (child.type === 'SkinnedMesh') {
-
-    child.frustumCulled = false;
-
-    child.castShadow = true;
-    child.receiveShadow = true;
-
-    if (child.material) {
-
-      child.material.roughness = 1;
-      child.material.metalness = 0;
-      child.material.needsUpdate = true;
-
-      // Optional hand highlight
-      const name = child.name.toLowerCase();
-
-      if (
-        name.includes('hand') ||
-        name.includes('finger') ||
-        name.includes('thumb')
-      ) {
-        child.material.color.set('#ffd6b0');
-      }
-    }
-  }
-});
+        if (child.type === 'SkinnedMesh') child.frustumCulled = false;
+      });
       ref.avatar = gltf.scene;
       ref.scene.add(ref.avatar);
       defaultPose(ref);
